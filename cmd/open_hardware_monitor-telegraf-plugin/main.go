@@ -11,7 +11,7 @@ import (
 )
 
 var pollInterval = flag.Duration("poll_interval", 1*time.Second, "how often to send metrics")
-var pollIntervalDisabled = flag.Bool("poll_interval_disabled", false, "how often to send metrics")
+var pollIntervalDisabled = flag.Bool("poll_interval_disabled", true, "how often to send metrics")
 var configFile = flag.String("config", "", "path to the config file for this plugin")
 var err error
 

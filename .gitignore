@@ -1,2 +1,3 @@
 /go.sum
-/open_hardware_monitor-telegraf-plugin*
+/dist/
+/build/
