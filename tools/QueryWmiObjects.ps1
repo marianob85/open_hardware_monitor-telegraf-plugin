@@ -1,0 +1,1 @@
+Get-WmiObject -Namespace root/OpenHardwareMonitor -Query "SELECT * FROM Sensor"

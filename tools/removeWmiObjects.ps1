@@ -1,0 +1,1 @@
+Get-WmiObject -Query "Select * From __Namespace Where Name='OpenHardwareMonitor'" -Namespace root | Remove-WmiObject
