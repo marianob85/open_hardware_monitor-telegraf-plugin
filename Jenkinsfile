@@ -72,7 +72,7 @@ pipeline
 			}
 
 			environment {
-				GITHUB_TOKEN = credentials('github-marianob85-secret')
+				GITHUB_TOKEN = credentials('marianob85-github-jenkins')
 			}
 
 			steps {
