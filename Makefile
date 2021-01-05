@@ -88,12 +88,12 @@ deps:
 
 .PHONY: $(plugin_name)
 $(plugin_name):
-	go build -ldflags "$(LDFLAGS)" -o open_hardware_monitor-telegraf-plugin ./cmd/open_hardware_monitor-telegraf-plugin/main.go
+	go build -ldflags "$(LDFLAGS)" ./cmd/open_hardware_monitor-telegraf-plugin
 
 # Used by dockerfile builds
 .PHONY: go-install
 go-install:
-	go install -mod=mod -ldflags "-w -s $(LDFLAGS)" ./cmd/open_hardware_monitor-telegraf-plugin/main.go
+	go install -mod=mod -ldflags "-w -s $(LDFLAGS)" ./cmd/open_hardware_monitor-telegraf-plugin
 
 .PHONY: test
 test:
