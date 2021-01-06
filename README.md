@@ -7,7 +7,7 @@ This input plugin will gather sensors data provide by [Open hardware Monitor](ht
 To integrate with telegraf, extend the telegraf.conf using the following example
 ```
 [[inputs.execd]]
-   command = ["/path/to/open_hardware_monitor-telegraf-plugin", "-config", "/path/to/open_hardware_monitor-telegraf-plugin.conf"]
+   command = ["/path/to/open_hardware_monitor-telegraf-plugin", "-config", "/path/to/open_hardware_monitor-telegraf-plugin.config"]
    signal = "STDIN"
 ```
 
