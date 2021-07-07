@@ -1,12 +1,6 @@
 properties(
 	[
 		buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '5')),
-		pipelineTriggers
-		(
-			[
-				pollSCM('0 H(5-6) * * *')
-			]
-		)
 	]
 )
 pipeline
@@ -56,12 +50,13 @@ pipeline
 			steps {
 				unstash 'dist'
 				sh '''
+					export GOPATH=${PWD}
 					go get github.com/github-release/github-release
-					github-release release --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${TAG_NAME}
+					bin/github-release release --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${TAG_NAME}
 					for filename in build/dist/*; do
 						[ -e "$filename" ] || continue
 						basefilename=$(basename "$filename")
-						github-release upload --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${basefilename} --file ${filename}
+						bin/github-release upload --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${basefilename} --file ${filename}
 					done
 				'''
 			}
