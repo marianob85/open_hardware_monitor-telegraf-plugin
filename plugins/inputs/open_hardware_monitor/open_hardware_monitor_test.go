@@ -1,10 +1,12 @@
+//go:build windows
 // +build windows
 
 package open_hardware_monitor
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateQueryWithSensors(t *testing.T) {
@@ -13,7 +15,7 @@ func TestCreateQueryWithSensors(t *testing.T) {
 		SensorsType: []string{"Temperature", "Voltage"},
 	}
 
-	query, _ := p.CreateQuery()
+	query, _ := p.CreateSensorsQuery()
 
 	assert.Equal(t, "SELECT * FROM SENSOR WHERE SensorType='Temperature' OR SensorType='Voltage'", query)
 }
@@ -22,7 +24,7 @@ func TestCreateQueryEmpty(t *testing.T) {
 	//var acc testutil.Accumulator
 	var p OpenHardwareMonitorConfig
 
-	query, _ := p.CreateQuery()
+	query, _ := p.CreateSensorsQuery()
 
 	assert.Equal(t, "SELECT * FROM SENSOR", query)
 }
