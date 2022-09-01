@@ -6,6 +6,7 @@ package open_hardware_monitor
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/StackExchange/wmi"
@@ -13,38 +14,29 @@ import (
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
 
-type OpenHardwareMonitorConfig struct {
+type Config struct {
 	SensorsType []string
 	Hardware    []string
 }
 
-type OpenHardwareMonitorSensor struct {
-	Identifier string
-	Index      int32
-	InstanceId string
-	Max        float32
-	Min        float32
-	Name       string
-	Parent     string
-	ProcessId  string
-	SensorType string
-	Value      float32
-}
-
-type OpenHardwareMonitorHardware struct {
+type Hardware struct {
 	HardwareType string
 	Identifier   string
 	InstanceId   string
 	Name         string
-	ProcessId    string
 }
 
-type OpenHardwareMonitorData struct {
-	Hardware []OpenHardwareMonitorHardware
-	Sensors []OpenHardwareMonitorSensor
+type Sensor struct {
+	Identifier string
+	Index      int
+	InstanceId string
+	Name       string
+	Parent     string
+	SensorType string
+	Value      float32
 }
 
-func (p *OpenHardwareMonitorConfig) Description() string {
+func (p *Config) Description() string {
 	return "Get sensors data from Open Hardware Monitor via WMI"
 }
 
@@ -58,11 +50,11 @@ const sampleConfig = `
 	Hardware = ["/intelcpu/0"]  # optional
 `
 
-func (p *OpenHardwareMonitorConfig) SampleConfig() string {
+func (p *Config) SampleConfig() string {
 	return sampleConfig
 }
 
-func (p *OpenHardwareMonitorConfig) CreateHardwareQuery() (string, error) {
+func (p *Config) CreateHardwareQuery() (string, error) {
 	query := "SELECT * FROM HARDWARE"
 	if len(p.Hardware) != 0 {
 		query += " WHERE "
@@ -75,25 +67,19 @@ func (p *OpenHardwareMonitorConfig) CreateHardwareQuery() (string, error) {
 	return query, nil
 }
 
-func (p *OpenHardwareMonitorConfig) QueryHardware() ([]OpenHardwareMonitorHardware, error) {
+func (p *Config) QueryHardware() ([]Hardware, error) {
 	hardwareQuery, err := p.CreateHardwareQuery()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var hardware []OpenHardwareMonitorHardware
+	var hardware []Hardware
 	err = wmi.QueryNamespace(hardwareQuery, &hardware, "root/OpenHardwareMonitor")
-
-	// TODO remove debug logging
-	fmt.Println("=== Hardware ===")
-	for i := range hardware {
-		fmt.Println(hardware[i])
-	}
 
 	return hardware, err
 }
 
-func (p *OpenHardwareMonitorConfig) CreateSensorsQuery() (string, error) {
+func (p *Config) CreateSensorsQuery() (string, error) {
 	query := "SELECT * FROM SENSOR"
 	if len(p.SensorsType) != 0 {
 		query += " WHERE "
@@ -106,63 +92,76 @@ func (p *OpenHardwareMonitorConfig) CreateSensorsQuery() (string, error) {
 	return query, nil
 }
 
-func (p *OpenHardwareMonitorConfig) QuerySensors() ([]OpenHardwareMonitorSensor, error) {
+func (p *Config) QuerySensors() ([]Sensor, error) {
 	sensorsQuery, err := p.CreateSensorsQuery()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var sensors []OpenHardwareMonitorSensor
+	var sensors []Sensor
 	err = wmi.QueryNamespace(sensorsQuery, &sensors, "root/OpenHardwareMonitor")
-
-	// TODO remove debug logging
-	fmt.Println("=== Sensors ===")
-	for i := range sensors {
-		fmt.Println(sensors[i])
-	}
 
 	return sensors, err
 }
 
-func contains(s []string, e string) bool {
-	if len(s) == 0 {
-		return true
+func BuildTelegrafData(sensor Sensor, hardware Hardware) (map[string]interface{}, map[string]string) {
+	// Field is just the sensor value
+	fields := map[string]interface{}{
+		sensor.SensorType: sensor.Value,
 	}
-	for _, a := range s {
-		if a == e {
-			return true
-		}
+
+	tags := map[string]string{
+		// Sensor info
+		"Sensor_Identifier": sensor.Identifier,
+		"Sensor_Index": strconv.Itoa(sensor.Index),
+		"Sensor_InstanceId": sensor.InstanceId,
+		"Sensor_Name": sensor.Name,
+		"Sensor_Parent": sensor.Parent,
+
+		// Hardware info
+		"Hardware_HardwareType": hardware.HardwareType,
+		"Hardware_Identifier": hardware.Identifier,
+		"Hardware_InstanceId": hardware.InstanceId,
+		"Hardware_Name": hardware.Name,
 	}
-	return false
+
+	return fields, tags
 }
 
-func (p *OpenHardwareMonitorConfig) Gather(acc telegraf.Accumulator) error {
-	p.QueryHardware()
-
-	var dst []OpenHardwareMonitorSensor
-	dst, err := p.QuerySensors()
+func (p *Config) Gather(acc telegraf.Accumulator) error {
+	var hardware []Hardware
+	hardware, err := p.QueryHardware()
 
 	if err != nil {
 		acc.AddError(err)
 	}
 
-	for _, sensorData := range dst {
-		if contains(p.Hardware, sensorData.Parent) {
-			tags := map[string]string{
-				"name":   sensorData.Name,
-				"parent": sensorData.Parent,
-			}
-			fields := map[string]interface{}{sensorData.SensorType: sensorData.Value}
-			acc.AddFields("ohm", fields, tags)
-		}
+	hardwareByIdentifier := map[string]Hardware{}
+	for _, h := range hardware {
+		hardwareByIdentifier[h.Identifier] = h
 	}
 
+	var sensors []Sensor
+	sensors, err = p.QuerySensors()
+
+	if err != nil {
+		acc.AddError(err)
+	}
+
+	// For each sensor
+	for _, s := range sensors {
+		// If sensors parent is included in hardware
+		if h, exists := hardwareByIdentifier[s.Parent]; exists {
+			fields, tags := BuildTelegrafData(s, h)
+			acc.AddFields("openhardwaremonitor", fields, tags)
+		}
+	}
 
 	return nil
 }
 
 func init() {
 	inputs.Add("open_hardware_monitor", func() telegraf.Input {
-		return &OpenHardwareMonitorConfig{}
+		return &Config{}
 	})
 }

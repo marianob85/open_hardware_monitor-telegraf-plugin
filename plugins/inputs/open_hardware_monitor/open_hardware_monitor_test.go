@@ -11,7 +11,7 @@ import (
 
 func TestCreateQueryWithSensors(t *testing.T) {
 	//var acc testutil.Accumulator
-	p := OpenHardwareMonitorConfig{
+	p := Config{
 		SensorsType: []string{"Temperature", "Voltage"},
 	}
 
@@ -22,7 +22,7 @@ func TestCreateQueryWithSensors(t *testing.T) {
 
 func TestCreateQueryEmpty(t *testing.T) {
 	//var acc testutil.Accumulator
-	var p OpenHardwareMonitorConfig
+	var p Config
 
 	query, _ := p.CreateSensorsQuery()
 
