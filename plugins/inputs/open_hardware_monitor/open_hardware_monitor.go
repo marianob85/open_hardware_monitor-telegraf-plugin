@@ -15,7 +15,7 @@ import (
 )
 
 type Config struct {
-	SensorsType []string
+	SensorType  []string
 	Hardware    []string
 }
 
@@ -43,11 +43,11 @@ func (p *Config) Description() string {
 const sampleConfig = `
 	# Which types of sensors should metrics be collected from
 	# If not given, all sensor types are included
-	SensorsType = ["Temperature", "Fan", "Voltage"] # optional
+	SensorType = ["Temperature", "Fan", "Voltage"] # optional
 	
 	# Which hardware should be metrics be collected from
 	# If not given, all hardware is included
-	Hardware = ["/intelcpu/0"]  # optional
+	Hardware = ["/intelcpu/0", /nvidiagpu/0"]  # optional
 `
 
 func (p *Config) SampleConfig() string {
@@ -58,11 +58,11 @@ func (p *Config) CreateHardwareQuery() (string, error) {
 	query := "SELECT * FROM HARDWARE"
 	if len(p.Hardware) != 0 {
 		query += " WHERE "
-		var hardware []string
-		for _, h := range p.Hardware {
-			hardware = append(hardware, fmt.Sprint("HardwareType='", h, "'"))
+		var conditions []string
+		for _, identifier := range p.Hardware {
+			conditions = append(conditions, fmt.Sprint("Identifier='", identifier, "'"))
 		}
-		query += strings.Join(hardware, " OR ")
+		query += strings.Join(conditions, " OR ")
 	}
 	return query, nil
 }
@@ -81,10 +81,10 @@ func (p *Config) QueryHardware() ([]Hardware, error) {
 
 func (p *Config) CreateSensorsQuery() (string, error) {
 	query := "SELECT * FROM SENSOR"
-	if len(p.SensorsType) != 0 {
+	if len(p.SensorType) != 0 {
 		query += " WHERE "
 		var sensors []string
-		for _, sensor := range p.SensorsType {
+		for _, sensor := range p.SensorType {
 			sensors = append(sensors, fmt.Sprint("SensorType='", sensor, "'"))
 		}
 		query += strings.Join(sensors, " OR ")
