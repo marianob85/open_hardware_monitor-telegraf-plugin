@@ -5,7 +5,6 @@ package open_hardware_monitor
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -15,8 +14,10 @@ import (
 )
 
 type Config struct {
-	SensorType  []string
-	Hardware    []string
+	HardwareType []string
+	Hardware     []string
+	SensorType   []string
+	Sensor       []string
 }
 
 type Hardware struct {
@@ -43,63 +44,107 @@ func (p *Config) Description() string {
 const sampleConfig = `
 	# Which types of sensors should metrics be collected from
 	# If not given, all sensor types are included
-	SensorType = ["Temperature", "Fan", "Voltage"] # optional
-	
-	# Which hardware should be metrics be collected from
+	HardwareType = ["CPU", "GpuNvidia"] # optional
+
+	# Which hardware identifiers should metrics be collected from
 	# If not given, all hardware is included
-	Hardware = ["/intelcpu/0", /nvidiagpu/0"]  # optional
+	Hardware = ["/intelcpu/0", "/nvidiagpu/0"]  # optional
+
+	# Which types of sensors should metrics be collected from
+	# If not given, all sensor types are included
+	SensorType = ["Temperature", "Fan", "Voltage"] # optional
+
+	# Which hardware identifiers should metrics be collected from
+	# If not given, all hardware is included
+	Sensor = ["/intelcpu/0", "/nvidiagpu/0"]  # optional
+	
 `
 
 func (p *Config) SampleConfig() string {
 	return sampleConfig
 }
 
-func (p *Config) CreateHardwareQuery() (string, error) {
-	query := "SELECT * FROM HARDWARE"
-	if len(p.Hardware) != 0 {
-		query += " WHERE "
-		var conditions []string
-		for _, identifier := range p.Hardware {
-			conditions = append(conditions, fmt.Sprint("Identifier='", identifier, "'"))
-		}
-		query += strings.Join(conditions, " OR ")
+func BuildOrConditions(values []string, field string) string {
+	conditions := []string{}
+	for _, value := range values {
+		conditions = append(conditions, fmt.Sprintf("%s='%s'", field, value))
 	}
-	return query, nil
+
+	if len(conditions) != 0 {
+		return "(" + strings.Join(conditions, " OR ") + ")"
+	} else {
+		return ""
+	}
+}
+
+func BuildAndConditions(conditions []string) string {
+	andConditions := []string{}
+	for _, condition := range conditions {
+		if len(condition) != 0 {
+			andConditions = append(andConditions, condition)
+		}
+	}
+	return strings.Join(andConditions, " AND ")
+}
+
+func (p *Config) CreateHardwareQuery() string {
+	query := "SELECT * FROM HARDWARE"
+
+	hardwareConditions := BuildOrConditions(p.Hardware, "Identifier")
+	hardwareTypeConditions := BuildOrConditions(p.HardwareType, "HardwareType")
+
+	allConditions := BuildAndConditions([]string{
+		hardwareConditions,
+		hardwareTypeConditions,
+	})
+
+	if len(allConditions) != 0 {
+		query += " WHERE " + allConditions
+	}
+
+	fmt.Println("Sensor Query", query)
+
+	return query
 }
 
 func (p *Config) QueryHardware() ([]Hardware, error) {
-	hardwareQuery, err := p.CreateHardwareQuery()
-	if err != nil {
-		log.Fatal(err)
-	}
+	hardwareQuery := p.CreateHardwareQuery()
 
 	var hardware []Hardware
-	err = wmi.QueryNamespace(hardwareQuery, &hardware, "root/OpenHardwareMonitor")
+	err := wmi.QueryNamespace(hardwareQuery, &hardware, "root/OpenHardwareMonitor")
 
 	return hardware, err
 }
 
-func (p *Config) CreateSensorsQuery() (string, error) {
+func (p *Config) CreateSensorsQuery() string {
 	query := "SELECT * FROM SENSOR"
-	if len(p.SensorType) != 0 {
-		query += " WHERE "
-		var sensors []string
-		for _, sensor := range p.SensorType {
-			sensors = append(sensors, fmt.Sprint("SensorType='", sensor, "'"))
-		}
-		query += strings.Join(sensors, " OR ")
+
+	sensorConditions := BuildOrConditions(p.Sensor, "Identifier")
+	sensorTypeConditions := BuildOrConditions(p.SensorType, "SensorType")
+	hardwareConditions := BuildOrConditions(p.Hardware, "Parent")
+	hardwareTypeConditions := BuildOrConditions(p.HardwareType, "HardwareType")
+
+	allConditions := BuildAndConditions([]string{
+		sensorConditions,
+		sensorTypeConditions,
+		hardwareConditions,
+		hardwareTypeConditions,
+	})
+
+	if len(allConditions) != 0 {
+		query += " WHERE " + allConditions
 	}
-	return query, nil
+
+	fmt.Println("Sensor Query", query)
+
+	return query
 }
 
 func (p *Config) QuerySensors() ([]Sensor, error) {
-	sensorsQuery, err := p.CreateSensorsQuery()
-	if err != nil {
-		log.Fatal(err)
-	}
+	sensorsQuery := p.CreateSensorsQuery()
 
 	var sensors []Sensor
-	err = wmi.QueryNamespace(sensorsQuery, &sensors, "root/OpenHardwareMonitor")
+	err := wmi.QueryNamespace(sensorsQuery, &sensors, "root/OpenHardwareMonitor")
 
 	return sensors, err
 }
@@ -154,6 +199,13 @@ func (p *Config) Gather(acc telegraf.Accumulator) error {
 		if h, exists := hardwareByIdentifier[s.Parent]; exists {
 			fields, tags := BuildTelegrafData(s, h)
 			acc.AddFields("openhardwaremonitor", fields, tags)
+		} else {
+			acc.AddError(
+				fmt.Errorf(
+					"unable to find hardware associated with sensor '%s', metrics will not be collected",
+					s.Identifier,
+				),
+			)
 		}
 	}
 
