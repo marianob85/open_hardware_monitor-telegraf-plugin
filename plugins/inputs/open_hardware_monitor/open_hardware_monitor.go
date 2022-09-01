@@ -102,8 +102,6 @@ func (p *Config) CreateHardwareQuery() string {
 		query += " WHERE " + allConditions
 	}
 
-	fmt.Println("Sensor Query", query)
-
 	return query
 }
 
@@ -134,8 +132,6 @@ func (p *Config) CreateSensorsQuery() string {
 	if len(allConditions) != 0 {
 		query += " WHERE " + allConditions
 	}
-
-	fmt.Println("Sensor Query", query)
 
 	return query
 }
