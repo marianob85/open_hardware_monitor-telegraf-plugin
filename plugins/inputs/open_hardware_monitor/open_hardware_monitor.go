@@ -41,24 +41,7 @@ func (p *Config) Description() string {
 	return "Get sensors data from Open Hardware Monitor via WMI"
 }
 
-const sampleConfig = `
-	# Which types of sensors should metrics be collected from
-	# If not given, all sensor types are included
-	HardwareType = ["CPU", "GpuNvidia"] # optional
-
-	# Which hardware identifiers should metrics be collected from
-	# If not given, all hardware is included
-	Hardware = ["/intelcpu/0", "/nvidiagpu/0"]  # optional
-
-	# Which types of sensors should metrics be collected from
-	# If not given, all sensor types are included
-	SensorType = ["Temperature", "Fan", "Voltage"] # optional
-
-	# Which hardware identifiers should metrics be collected from
-	# If not given, all hardware is included
-	Sensor = ["/intelcpu/0", "/nvidiagpu/0"]  # optional
-	
-`
+var sampleConfig string
 
 func (p *Config) SampleConfig() string {
 	return sampleConfig
@@ -194,7 +177,7 @@ func (p *Config) Gather(acc telegraf.Accumulator) error {
 		// If sensors parent is included in hardware
 		if h, exists := hardwareByIdentifier[s.Parent]; exists {
 			fields, tags := BuildTelegrafData(s, h)
-			acc.AddFields("openhardwaremonitor", fields, tags)
+			acc.AddFields("open_hardware_monitor", fields, tags)
 		} else {
 			acc.AddError(
 				fmt.Errorf(
