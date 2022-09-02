@@ -135,3 +135,11 @@ open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Ha
 open_hardware_monitor,Hardware_HardwareType=HDD,Hardware_Identifier=/hdd/0,Hardware_InstanceId=3880,Hardware_Name=ST640LM001\ HN-M640MBB,Sensor_Identifier=/hdd/0/load/0,Sensor_Index=0,Sensor_InstanceId=3879,Sensor_Name=Used\ Space,Sensor_Parent=/hdd/0 Load=56.18767547607422 1662077688278738400
 open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/fan/0,Sensor_Index=0,Sensor_InstanceId=3869,Sensor_Name=GPU,Sensor_Parent=/nvidiagpu/0 Fan=1200 1662077688278738400
 ```
+
+The above output was taken from the same system as this screenshot of OpenHardwareMonitor (but at different times, so values differ). You can compare the example output above to the screenshot to see how the metrics are represented.
+
+<details>
+
+<summary>OpenHardwareMonitor screenshot</summary>
+<img src="./openhardwaremonitor.png" alt="OpenHardwareMonitor screenshot" />
+</details>
