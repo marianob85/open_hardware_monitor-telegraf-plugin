@@ -84,7 +84,7 @@ Each measurement includes one of the available fields. The sensors that are repo
     - Throughput (MB/s = 2^20 Bytes/s)
 
 
-### Example Output:
+## Example Output
 
 ```txt
 open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/smalldata/1,Sensor_Index=1,Sensor_InstanceId=3872,Sensor_Name=GPU\ Memory\ Free,Sensor_Parent=/nvidiagpu/0 SmallData=4376.2265625 1662077688278738400
