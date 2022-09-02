@@ -1,6 +1,6 @@
 # OpenHardwareMonitor Input Plugin
 
-This input plugin will gather sensors data provide by [Open hardware Monitor](http://openhardwaremonitor.org) application via Windows Management Instrumentation interface (WMI) 
+This input plugin gathers system hardware data provided by [Open hardware Monitor](http://openhardwaremonitor.org) via the Windows Management Instrumentation interface (WMI) 
 
 
 ## Usage
