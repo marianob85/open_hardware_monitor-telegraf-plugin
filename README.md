@@ -1,104 +1,145 @@
 # OpenHardwareMonitor Input Plugin
 
-This input plugin will gather sensors data provide by [Open hardware Monitor](http://openhardwaremonitor.org) application via Windows Management Instrumentation interface (WMI) 
+This input plugin gathers system hardware data provided by [Open Hardware Monitor](http://openhardwaremonitor.org) via the Windows Management Instrumentation interface (WMI) 
 
-### Install Instructions 
 
-To integrate with telegraf, extend the telegraf.conf using the following example
+## Usage
+*These instructions assume you have Go installed and configured on your machine*
+
+Clone the repository
+```sh
+git clone https://github.com/marianob85/open_hardware_monitor-telegraf-plugin
+cd open_hardware_monitor-telegraf-plugin
 ```
+
+Build the module into an executable
+```sh
+go build -o open_hardware_monitor-telegraf-plugin.exe cmd/open_hardware_monitor-telegraf-plugin/main.go
+```
+
+Reference the executable and config in your `telegraf.conf` using the `execd` input
+```toml
 [[inputs.execd]]
-   command = ["/path/to/open_hardware_monitor-telegraf-plugin", "-config", "/path/to/open_hardware_monitor-telegraf-plugin.config"]
+   command = ["/path/to/open_hardware_monitor-telegraf-plugin.exe", "-config", "/path/to/open_hardware_monitor-telegraf-plugin.conf"]
    signal = "STDIN"
 ```
 
-### Configuration:
 
+## Configuration
+*Possible values for `HardwareType` can be found here https://github.com/openhardwaremonitor/openhardwaremonitor/blob/master/Hardware/IHardware.cs#L15*
+
+*Possible values for `SensorType` can be found here https://github.com/openhardwaremonitor/openhardwaremonitor/blob/master/Hardware/ISensor.cs#L17*
+
+```toml
+[[inputs.open_hardware_monitor]]
+	# Which types of hardware should metrics be collected from
+	# Possible values can be found here https://github.com/openhardwaremonitor/openhardwaremonitor/blob/master/Hardware/IHardware.cs#L15
+	# If not given, all hardware types are included\
+	HardwareType = ["CPU", "GpuNvidia"] # optional
+
+	# Which hardware identifiers should metrics be collected from
+	# If not given, all hardware is included
+	Hardware = ["/intelcpu/0", "/nvidiagpu/0"]  # optional
+
+	# Which types of sensors should metrics be collected from
+	# Possible values (with units) can be found here https://github.com/openhardwaremonitor/openhardwaremonitor/blob/master/Hardware/ISensor.cs#L17
+	# If not given, all sensor types are included
+	SensorType = ["Temperature", "Fan", "Voltage"] # optional
+
+	# Which hardware identifiers should metrics be collected from
+	# If not given, all hardware is included
+	Sensor = ["/amdcpu/0/load/6"]  # optional
 ```
-# # Get sensors data from Open Hardware Monitor via WMI
-# [[inputs.open_hardware_monitor]]
-	## Sensors to query ( if not given then all is queried )
-	SensorsType = ["Temperature", "Fan", "Voltage"] # optional
-	
-	## Which hardware should be available
-	Parent = ["intelcpu_0"]  # optional
+
+
+## Metrics
+By default, metrics will be reported for all hardware and sensors. See [configuration](#configuration) for information on filtering what metrics are included.
+
+Each measurement includes one of the available fields. The sensors that are reported depend on the hardware and its available sensors.
+
+- open_hardware_monitor
+  - tags:
+    - Sensor_Identifier
+    - Sensor_Index
+    - Sensor_InstanceId
+    - Sensor_Name
+    - Sensor_Parent
+    - Hardware_HardwareType
+    - Hardware_Identifier
+    - Hardware_InstanceId
+    - Hardware_Name
+  - fields:
+    - Voltage (V)
+    - Clock (MHz)
+    - Temperature (°C)
+    - Load (%)
+    - Fan (RPM)
+    - Flow (L/h)
+    - Control (%)
+    - Level (%)
+    - Factor (1)
+    - Power (W)
+    - Data (GB = 2^30 Bytes    )
+    - SmallData (MB = 2^20 Bytes)
+    - Throughput (MB/s = 2^20 Bytes/s)
+
+
+## Example Output
+
+```txt
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/smalldata/1,Sensor_Index=1,Sensor_InstanceId=3872,Sensor_Name=GPU\ Memory\ Free,Sensor_Parent=/nvidiagpu/0 SmallData=4376.2265625 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/power/7,Sensor_Index=7,Sensor_InstanceId=3854,Sensor_Name=CPU\ Core\ #6,Sensor_Parent=/amdcpu/0 Power=0.9406327605247498 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/load/0,Sensor_Index=0,Sensor_InstanceId=3864,Sensor_Name=GPU\ Core,Sensor_Parent=/nvidiagpu/0 Load=12 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/load/6,Sensor_Index=6,Sensor_InstanceId=3845,Sensor_Name=CPU\ Core\ #6,Sensor_Parent=/amdcpu/0 Load=2.34375 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/throughput/0,Sensor_Index=0,Sensor_InstanceId=3875,Sensor_Name=GPU\ PCIE\ Rx,Sensor_Parent=/nvidiagpu/0 Throughput=2.9296875 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/load/1,Sensor_Index=1,Sensor_InstanceId=3865,Sensor_Name=GPU\ Frame\ Buffer,Sensor_Parent=/nvidiagpu/0 Load=20 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/clock/1,Sensor_Index=1,Sensor_InstanceId=3886,Sensor_Name=CPU\ Core\ #1,Sensor_Parent=/amdcpu/0 Clock=3675.029541015625 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/clock/2,Sensor_Index=2,Sensor_InstanceId=3887,Sensor_Name=CPU\ Core\ #2,Sensor_Parent=/amdcpu/0 Clock=3675.029541015625 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=HDD,Hardware_Identifier=/hdd/0,Hardware_InstanceId=3880,Hardware_Name=ST640LM001\ HN-M640MBB,Sensor_Identifier=/hdd/0/temperature/0,Sensor_Index=0,Sensor_InstanceId=3878,Sensor_Name=Temperature,Sensor_Parent=/hdd/0 Temperature=30 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/throughput/1,Sensor_Index=1,Sensor_InstanceId=3876,Sensor_Name=GPU\ PCIE\ Tx,Sensor_Parent=/nvidiagpu/0 Throughput=0 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/power/3,Sensor_Index=3,Sensor_InstanceId=3850,Sensor_Name=CPU\ Core\ #2,Sensor_Parent=/amdcpu/0 Power=1.6744794845581055 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/load/1,Sensor_Index=1,Sensor_InstanceId=3840,Sensor_Name=CPU\ Core\ #1,Sensor_Parent=/amdcpu/0 Load=2.3561477661132812 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/power/4,Sensor_Index=4,Sensor_InstanceId=3851,Sensor_Name=CPU\ Core\ #3,Sensor_Parent=/amdcpu/0 Power=0.9344657063484192 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/temperature/0,Sensor_Index=0,Sensor_InstanceId=3860,Sensor_Name=GPU\ Core,Sensor_Parent=/nvidiagpu/0 Temperature=34 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=RAM,Hardware_Identifier=/ram,Hardware_InstanceId=3859,Hardware_Name=Generic\ Memory,Sensor_Identifier=/ram/load/0,Sensor_Index=0,Sensor_InstanceId=3856,Sensor_Name=Memory,Sensor_Parent=/ram Load=49.02440643310547 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/load/0,Sensor_Index=0,Sensor_InstanceId=3846,Sensor_Name=CPU\ Total,Sensor_Parent=/amdcpu/0 Load=2.8606414794921875 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=RAM,Hardware_Identifier=/ram,Hardware_InstanceId=3859,Hardware_Name=Generic\ Memory,Sensor_Identifier=/ram/data/0,Sensor_Index=0,Sensor_InstanceId=3857,Sensor_Name=Used\ Memory,Sensor_Parent=/ram Data=15.65249252319336 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/power/0,Sensor_Index=0,Sensor_InstanceId=3847,Sensor_Name=CPU\ Package,Sensor_Parent=/amdcpu/0 Power=29.370040893554688 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/load/3,Sensor_Index=3,Sensor_InstanceId=3867,Sensor_Name=GPU\ Bus\ Interface,Sensor_Parent=/nvidiagpu/0 Load=0 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/control/0,Sensor_Index=0,Sensor_InstanceId=3868,Sensor_Name=GPU\ Fan,Sensor_Parent=/nvidiagpu/0 Control=32 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/load/4,Sensor_Index=4,Sensor_InstanceId=3843,Sensor_Name=CPU\ Core\ #4,Sensor_Parent=/amdcpu/0 Load=2.3076891899108887 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/power/5,Sensor_Index=5,Sensor_InstanceId=3852,Sensor_Name=CPU\ Core\ #4,Sensor_Parent=/amdcpu/0 Power=0.9896644949913025 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/load/3,Sensor_Index=3,Sensor_InstanceId=3842,Sensor_Name=CPU\ Core\ #3,Sensor_Parent=/amdcpu/0 Load=0 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/power/6,Sensor_Index=6,Sensor_InstanceId=3853,Sensor_Name=CPU\ Core\ #5,Sensor_Parent=/amdcpu/0 Power=1.0436451435089111 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/clock/1,Sensor_Index=1,Sensor_InstanceId=3862,Sensor_Name=GPU\ Memory,Sensor_Parent=/nvidiagpu/0 Clock=405.0000305175781 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/load/4,Sensor_Index=4,Sensor_InstanceId=3873,Sensor_Name=GPU\ Memory,Sensor_Parent=/nvidiagpu/0 Load=28.772354125976562 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/clock/2,Sensor_Index=2,Sensor_InstanceId=3863,Sensor_Name=GPU\ Shader,Sensor_Parent=/nvidiagpu/0 Clock=0 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/clock/5,Sensor_Index=5,Sensor_InstanceId=3890,Sensor_Name=CPU\ Core\ #5,Sensor_Parent=/amdcpu/0 Clock=3675.029541015625 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/load/2,Sensor_Index=2,Sensor_InstanceId=3841,Sensor_Name=CPU\ Core\ #2,Sensor_Parent=/amdcpu/0 Load=7.8125 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/temperature/0,Sensor_Index=0,Sensor_InstanceId=3884,Sensor_Name=CPU\ Package,Sensor_Parent=/amdcpu/0 Temperature=52.375 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/load/2,Sensor_Index=2,Sensor_InstanceId=3866,Sensor_Name=GPU\ Video\ Engine,Sensor_Parent=/nvidiagpu/0 Load=0 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=HDD,Hardware_Identifier=/hdd/1,Hardware_InstanceId=3882,Hardware_Name=Generic\ Hard\ Disk,Sensor_Identifier=/hdd/1/load/0,Sensor_Index=0,Sensor_InstanceId=3881,Sensor_Name=Used\ Space,Sensor_Parent=/hdd/1 Load=94.56112670898438 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/smalldata/3,Sensor_Index=3,Sensor_InstanceId=3870,Sensor_Name=GPU\ Memory\ Total,Sensor_Parent=/nvidiagpu/0 SmallData=6144 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/smalldata/2,Sensor_Index=2,Sensor_InstanceId=3871,Sensor_Name=GPU\ Memory\ Used,Sensor_Parent=/nvidiagpu/0 SmallData=1767.7734375 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/power/0,Sensor_Index=0,Sensor_InstanceId=3874,Sensor_Name=GPU\ Power,Sensor_Parent=/nvidiagpu/0 Power=15.859001159667969 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/load/5,Sensor_Index=5,Sensor_InstanceId=3844,Sensor_Name=CPU\ Core\ #5,Sensor_Parent=/amdcpu/0 Load=2.34375 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/clock/3,Sensor_Index=3,Sensor_InstanceId=3888,Sensor_Name=CPU\ Core\ #3,Sensor_Parent=/amdcpu/0 Clock=3675.029541015625 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/clock/4,Sensor_Index=4,Sensor_InstanceId=3889,Sensor_Name=CPU\ Core\ #4,Sensor_Parent=/amdcpu/0 Clock=3675.029541015625 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/clock/6,Sensor_Index=6,Sensor_InstanceId=3891,Sensor_Name=CPU\ Core\ #6,Sensor_Parent=/amdcpu/0 Clock=3675.029541015625 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/power/1,Sensor_Index=1,Sensor_InstanceId=3892,Sensor_Name=CPU\ Cores,Sensor_Parent=/amdcpu/0 Power=6.767841339111328 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=RAM,Hardware_Identifier=/ram,Hardware_InstanceId=3859,Hardware_Name=Generic\ Memory,Sensor_Identifier=/ram/data/1,Sensor_Index=1,Sensor_InstanceId=3858,Sensor_Name=Available\ Memory,Sensor_Parent=/ram Data=16.275466918945312 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/clock/0,Sensor_Index=0,Sensor_InstanceId=3861,Sensor_Name=GPU\ Core,Sensor_Parent=/nvidiagpu/0 Clock=390.0000305175781 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/temperature/5,Sensor_Index=5,Sensor_InstanceId=3885,Sensor_Name=CPU\ CCD\ #2,Sensor_Parent=/amdcpu/0 Temperature=42.25 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/clock/0,Sensor_Index=0,Sensor_InstanceId=3848,Sensor_Name=Bus\ Speed,Sensor_Parent=/amdcpu/0 Clock=100.00080108642578 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=CPU,Hardware_Identifier=/amdcpu/0,Hardware_InstanceId=3855,Hardware_Name=AMD\ Ryzen\ 5\ 5600X,Sensor_Identifier=/amdcpu/0/power/2,Sensor_Index=2,Sensor_InstanceId=3849,Sensor_Name=CPU\ Core\ #1,Sensor_Parent=/amdcpu/0 Power=1.1849539279937744 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=HDD,Hardware_Identifier=/hdd/0,Hardware_InstanceId=3880,Hardware_Name=ST640LM001\ HN-M640MBB,Sensor_Identifier=/hdd/0/load/0,Sensor_Index=0,Sensor_InstanceId=3879,Sensor_Name=Used\ Space,Sensor_Parent=/hdd/0 Load=56.18767547607422 1662077688278738400
+open_hardware_monitor,Hardware_HardwareType=GpuNvidia,Hardware_Identifier=/nvidiagpu/0,Hardware_InstanceId=3877,Hardware_Name=NVIDIA\ NVIDIA\ GeForce\ RTX\ 2060,Sensor_Identifier=/nvidiagpu/0/fan/0,Sensor_Index=0,Sensor_InstanceId=3869,Sensor_Name=GPU,Sensor_Parent=/nvidiagpu/0 Fan=1200 1662077688278738400
 ```
 
-### Measurements & Fields:
+The above output was taken from the same system as this screenshot of OpenHardwareMonitor (but at different times, so values differ). You can compare the example output above to the screenshot to see how the metrics are represented.
 
-- All sensors provided by OpenHardwareMonitor or specify subset defined in the SensorsType configuration. 
+<details>
 
-### Tags:
-
-- All measurements have the following tags:
-	
-	- name
-	- parent
-
-### Example Output:
-
-```
-* Plugin: open_hardware_monitor, Collection 1
-ohm,host=Test-PC,name=Temperature_#2,parent=lpc_nct6779d Temperature=34 1469698553000000000
-ohm,host=Test-PC,name=VTT,parent=lpc_nct6779d Voltage=1.056 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#14,parent=lpc_nct6779d Voltage=1 1469698553000000000
-ohm,host=Test-PC,name=3VCC,parent=lpc_nct6779d Voltage=3.4240003 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#3,parent=intelcpu_0 Temperature=41 1469698553000000000
-ohm,host=Test-PC,name=Fan_Control_#4,parent=lpc_nct6779d Control=100 1469698553000000000
-ohm,host=Test-PC,name=GPU_Shader,parent=nvidiagpu_0 Clock=270 1469698553000000000
-ohm,host=Test-PC,name=Bus_Speed,parent=intelcpu_0 Clock=99.99993 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#2,parent=intelcpu_0 Clock=1599.9989 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#2,parent=intelcpu_0 Load=0 1469698553000000000
-ohm,host=Test-PC,name=GPU_Fan,parent=nvidiagpu_0 Control=33 1469698553000000000
-ohm,host=Test-PC,name=Available_Memory,parent=ram Data=13.124931 1469698553000000000
-ohm,host=Test-PC,name=3VSB,parent=lpc_nct6779d Voltage=3.4080002 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#12,parent=lpc_nct6779d Voltage=0.24800001 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#2,parent=lpc_nct6779d Voltage=1 1469698553000000000
-ohm,host=Test-PC,name=Fan_Control_#1,parent=lpc_nct6779d Control=74.117645 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core,parent=lpc_nct6779d Temperature=46 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#6,parent=lpc_nct6779d Voltage=2.0400002 1469698553000000000
-ohm,host=Test-PC,name=GPU_Core,parent=nvidiagpu_0 Clock=135 1469698553000000000
-ohm,host=Test-PC,name=CPU_Cores,parent=intelcpu_0 Power=4.77574 1469698553000000000
-ohm,host=Test-PC,name=CPU_Package,parent=intelcpu_0 Temperature=45 1469698553000000000
-ohm,host=Test-PC,name=GPU_Memory_Controller,parent=nvidiagpu_0 Load=5 1469698553000000000
-ohm,host=Test-PC,name=Memory,parent=ram Load=45.18159 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#4,parent=intelcpu_0 Clock=2999.998 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#4,parent=intelcpu_0 Load=3.125 1469698553000000000
-ohm,host=Test-PC,name=GPU_Core,parent=nvidiagpu_0 Temperature=37 1469698553000000000
-ohm,host=Test-PC,name=Temperature_#6,parent=lpc_nct6779d Temperature=-7 1469698553000000000
-ohm,host=Test-PC,name=Fan_#4,parent=lpc_nct6779d Fan=672 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#1,parent=intelcpu_0 Temperature=44 1469698553000000000
-ohm,host=Test-PC,name=Temperature_#4,parent=lpc_nct6779d Temperature=-25 1469698553000000000
-ohm,host=Test-PC,name=Temperature_#5,parent=lpc_nct6779d Temperature=90 1469698553000000000
-ohm,host=Test-PC,name=Fan_#2,parent=lpc_nct6779d Fan=1355 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#11,parent=lpc_nct6779d Voltage=1.8240001 1469698553000000000
-ohm,host=Test-PC,name=Temperature_#3,parent=lpc_nct6779d Temperature=32 1469698553000000000
-ohm,host=Test-PC,name=GPU_Video_Engine,parent=nvidiagpu_0 Load=0 1469698553000000000
-ohm,host=Test-PC,name=VBAT,parent=lpc_nct6779d Voltage=3.3600001 1469698553000000000
-ohm,host=Test-PC,name=Used_Space,parent=hdd_1 Load=36.86175 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#13,parent=lpc_nct6779d Voltage=1.016 1469698553000000000
-ohm,host=Test-PC,name=AVCC,parent=lpc_nct6779d Voltage=3.4240003 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#2,parent=intelcpu_0 Temperature=41 1469698553000000000
-ohm,host=Test-PC,name=Fan_Control_#3,parent=lpc_nct6779d Control=100 1469698553000000000
-ohm,host=Test-PC,name=GPU_Memory,parent=nvidiagpu_0 Clock=405.00003 1469698553000000000
-ohm,host=Test-PC,name=CPU_Graphics,parent=intelcpu_0 Power=0 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#1,parent=intelcpu_0 Clock=1599.9989 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#1,parent=intelcpu_0 Load=3.125 1469698553000000000
-ohm,host=Test-PC,name=CPU_Total,parent=intelcpu_0 Load=2.734375 1469698553000000000
-ohm,host=Test-PC,name=Used_Memory,parent=ram Data=10.817631 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#7,parent=lpc_nct6779d Voltage=1.5680001 1469698553000000000
-ohm,host=Test-PC,name=Used_Space,parent=hdd_0 Load=48.958797 1469698553000000000
-ohm,host=Test-PC,name=Temperature_#1,parent=lpc_nct6779d Temperature=39 1469698553000000000
-ohm,host=Test-PC,name=CPU_VCore,parent=lpc_nct6779d Voltage=0.87200004 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#15,parent=lpc_nct6779d Voltage=0.216 1469698553000000000
-ohm,host=Test-PC,name=Voltage_#5,parent=lpc_nct6779d Voltage=1.016 1469698553000000000
-ohm,host=Test-PC,name=GPU,parent=nvidiagpu_0 Fan=1480 1469698553000000000
-ohm,host=Test-PC,name=CPU_Package,parent=intelcpu_0 Power=10.8843355 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#4,parent=intelcpu_0 Temperature=32 1469698553000000000
-ohm,host=Test-PC,name=Fan_Control_#5,parent=lpc_nct6779d Control=100 1469698553000000000
-ohm,host=Test-PC,name=GPU_Core,parent=nvidiagpu_0 Load=0 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#3,parent=intelcpu_0 Clock=2999.998 1469698553000000000
-ohm,host=Test-PC,name=CPU_Core_#3,parent=intelcpu_0 Load=4.6875 1469698553000000000
-ohm,host=Test-PC,name=GPU_Memory,parent=nvidiagpu_0 Load=8.956909 1469698553000000000
-ohm,host=Test-PC,name=Fan_#1,parent=lpc_nct6779d Fan=1078 1469698553000000000
-ohm,host=Test-PC,name=Fan_Control_#2,parent=lpc_nct6779d Control=45.882355 1469698553000000000
-ohm,host=Test-PC,name=Fan_#3,parent=lpc_nct6779d Fan=1000 1469698553000000000
+<summary>OpenHardwareMonitor screenshot</summary>
+<img src="./openhardwaremonitor.png" alt="OpenHardwareMonitor screenshot" />
+</details>
